@@ -3,9 +3,11 @@
 package interceptor
 
 import (
-	"github.com/mastercard/oauth1-signer-go"
-	"github.com/mastercard/oauth1-signer-go/utils"
+	"io"
 	"net/http"
+
+	oauth "github.com/mastercard/oauth1-signer-go"
+	"github.com/mastercard/oauth1-signer-go/utils"
 )
 
 // The httpClientInterceptor is the composition of http.RoundTripper and oauth.Signer
@@ -25,6 +27,19 @@ func (h *httpClientInterceptor) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 	return h.RoundTripper.RoundTrip(req)
+}
+
+func NewHTTPRoundTripper(rt http.RoundTripper, consumerKey string, r io.Reader, password string) (*httpClientInterceptor, error) {
+	signingKey, e := utils.LoadSigningKeyFromReader(r, password)
+	if e != nil {
+		return nil, e
+	}
+	signer := oauth.Signer{ConsumerKey: consumerKey, SigningKey: signingKey}
+
+	return &httpClientInterceptor{
+		RoundTripper: rt,
+		Signer:       signer,
+	}, nil
 }
 
 // GetHttpClient provides the http.Client having capability to intercept
